@@ -1,3 +1,9 @@
+### Project-specific ###
+
+.npmignore
+**/*.js
+!jest.config.js
+
 # Created by https://www.toptal.com/developers/gitignore/api/macos,windows,linux,visualstudiocode,webstorm+all,node
 # Edit at https://www.toptal.com/developers/gitignore?templates=macos,windows,linux,visualstudiocode,webstorm+all,node
 

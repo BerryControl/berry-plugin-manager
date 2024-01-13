@@ -14,10 +14,9 @@
    limitations under the License.
  */
 
-import { exec } from 'child_process'
+import { execSync } from 'child_process'
 import fs from 'fs'
 import path from 'path'
-import { PluginManager as LivePluginManager } from 'live-plugin-manager'
 
 import { Plugin } from './index'
 
@@ -34,31 +33,37 @@ export interface PluginManagerOptions {
     /**
      * Local directories where plugins shall be looked up.
      */
-    localPluginDirectories?: string[]
+    localPluginDirectory?: string
 }
 
 export class PluginManager<PluginType extends Plugin> {
     private _pluginPackageNamePattern: RegExp
-    private _localPluginDirectories?: string[]
+    private _localPluginDirectory?: string
 
     public constructor(options: PluginManagerOptions) {
         this._pluginPackageNamePattern = options.pluginPackageNamePattern
-        this._localPluginDirectories = options.localPluginDirectories
+        this._localPluginDirectory = options.localPluginDirectory
     }
 
     public async loadPlugins(): Promise<Set<PluginType>> {
         let pluginNames = await this._loadPluginNames()
         let plugins: Set<PluginType> = new Set()
-        const manager = new LivePluginManager()
 
         pluginNames.forEach(name => {
-            let pluginEntry = manager.require(name)
-            let plugin: PluginType = pluginEntry()
+            let npm = require('arg')
+            let pluginEntry = require(name)
+            let plugin: PluginType = pluginEntry.default()
 
             plugins.add(plugin)
         })
 
         return plugins
+    }
+
+    private _require(name: string): any {
+        let data = fs.readFileSync(name)
+
+        return eval(data.toString())
     }
 
     private async _loadPluginNames(): Promise<Set<string>> {
@@ -69,154 +74,106 @@ export class PluginManager<PluginType extends Plugin> {
     }
 
     private async _loadLocalPluginNames(): Promise<Set<string>> {
-        return new Promise<Set<string>>(async (resolve, reject) => {
-            let result: Set<string> = new Set()
+        let result: Set<string> = new Set()
 
-            try {
-                if (!this._localPluginDirectories || this._localPluginDirectories!.length == 0) {
-                    // no local plugin directories set
-                    resolve(result)
-                    return
-                }
+        if (!this._localPluginDirectory) {
+            // no local plugin directories set
+            return result
+        }
 
-                for (var directory in this._localPluginDirectories!) {
-                    let localPluginNames = await this._loadLocalPluginNamesFromDirectory(directory)
+        let localPluginNames = await this._loadLocalPluginNamesFromDirectory(this._localPluginDirectory!)
 
-                    localPluginNames.forEach(pluginName => {
-                        result.add(pluginName)
-                    })
-                }
-
-                resolve(result)
-            } catch (err) {
-                reject(err)
-            }
+        localPluginNames.forEach(pluginName => {
+            result.add(pluginName)
         })
+
+        return result
     }
 
     private async _loadLocalPluginNamesFromDirectory(directory: string): Promise<Set<string>> {
-        return new Promise<Set<string>>(async (resolve, reject) => {
-            let result: Set<string> = new Set()
+        let result: Set<string> = new Set()
 
-            try {
-                if (!fs.existsSync(directory)) {
-                    resolve(result)
-                    return
+        if (!fs.existsSync(directory)) {
+            return result
+        }
+
+        const filenames = fs.readdirSync(directory).filter((fn) => this._pluginPackageNamePattern.test(fn))
+
+        for (let i = 0; i < filenames.length; i++) {
+            const filename = filenames[i]
+            const qualifiedFilename = path.join(directory, filename)
+
+            if (this._isDirectory(qualifiedFilename)) {
+                const mainfile = await this._retrieveMainFile(qualifiedFilename)
+
+                if (mainfile) {
+                    result.add(qualifiedFilename)
                 }
-
-                const filenames = fs.readdirSync(directory).filter((fn) => this._pluginPackageNamePattern.test(fn))
-
-                for (var filename in filenames) {
-                    const qualifiedFilename = path.join(directory, filename)
-
-                    if (await this._isDirectory(qualifiedFilename)) {
-                        const mainfile = await this._retrieveMainFile(qualifiedFilename)
-
-                        if (mainfile) {
-                            result.add(mainfile)
-                        }
-                    }
-                }
-
-                resolve(result)
-            } catch (err) {
-                reject(err)
             }
-        })
+        }
+
+        return result
     }
 
     private async _retrieveMainFile(packageDirectory: string): Promise<string | null> {
-        return new Promise<string | null>(async (resolve, reject) => {
-            try {
-                var result: string | null = null
-                const packageJs = path.join(packageDirectory, 'package.json')
+        var result: string | null = null
+        const packageJs = path.join(packageDirectory, 'package.json')
 
-                if (!fs.existsSync(packageJs)) {
-                    resolve(result)
-                    return
-                }
+        if (!fs.existsSync(packageJs)) {
+            return result
+        }
 
-                const pkg = await this._loadPackageJson(packageJs)
+        const pkg = await this._loadPackageJson(packageJs)
 
-                if (pkg['main']) {
-                    const mainFile: string = path.normalize(path.join(packageDirectory, pkg['main']))
+        if (pkg['main']) {
+            const mainFile: string = path.normalize(path.join(packageDirectory, pkg['main']))
 
-                    if (fs.existsSync(mainFile)) {
-                        result = mainFile
-                    }
-                }
-
-                resolve(result)
-            } catch (err) {
-                reject(err)
+            if (fs.existsSync(mainFile)) {
+                result = mainFile
             }
-        })
+        }
+
+        return result
     }
 
     private async _loadPackageJson(packageJs: string): Promise<any> {
-        return new Promise<any>((resolve, reject) => {
-            try {
-                fs.readFile(packageJs, { encoding: 'utf8' }, (err, data) => {
-                    if (err) {
-                        reject(err)
-                        return
-                    }
+        let data = fs.readFileSync(packageJs)
 
-                    resolve(JSON.parse(data))
-                })
-            } catch (err) {
-                reject(err)
-            }
-        })
+        return JSON.parse(data.toString())
     }
 
-    private async _isDirectory(filename: string): Promise<boolean> {
-        return new Promise<boolean>((resolve, reject) => {
-            fs.stat(filename, (err, stats) => {
-                if (err) {
-                    reject(err)
-                    return
-                }
-
-                resolve(stats.isDirectory())
-            })
-        })
+    private _isDirectory(filename: string): boolean {
+        return fs.statSync(filename).isDirectory()
     }
 
     private async _loadGlobalPluginNames(): Promise<Set<string>> {
-        return new Promise<Set<string>>((resolve, reject) => {
-            exec(
-                '/bin/echo -n "$(npm -g list --json --depth 0)"',
-                {
-                    env: Object.assign({
-                        npm_config_loglevel: 'silent',
-                        npm_update_notifier: 'false',
-                    }, process.env),
-                },
-                (err, stdout, stderr) => {
-                    if (err) {
-                        reject(err)
-                        return
-                    }
+        const globalModulesPath = execSync('/bin/echo -n "$(npm -g prefix)/lib/node_modules"', {
+            env: Object.assign({
+                npm_config_loglevel: "silent",
+                npm_update_notifier: "false",
+            }, process.env),
+        }).toString("utf8")
 
-                    try {
-                        let list = JSON.parse(stdout)
-                        let packages = list['dependencies']
-                        let packageNames: Set<string> = new Set()
+        let data = execSync(
+            '/bin/echo -n "$(npm -g list --json --depth 0)"',
+            {
+                env: Object.assign({
+                    npm_config_loglevel: 'silent',
+                    npm_update_notifier: 'false',
+                }, process.env),
+            })
+        let list = JSON.parse(data.toString())
+        let packages = list['dependencies']
+        let packageNames: Set<string> = new Set()
 
-                        if (packages) {
-                            for (var pkg in packages) {
-                                if (this._pluginPackageNamePattern.test(pkg)) {
-                                    packageNames.add(pkg)
-                                }
-                            }
-                        }
+        if (packages) {
+            for (var pkg in packages) {
+                if (this._pluginPackageNamePattern.test(pkg)) {
+                    packageNames.add(path.join(globalModulesPath, pkg))
+                }
+            }
+        }
 
-                        resolve(packageNames)
-                    } catch (ex) {
-                        reject(ex)
-                    }
-                })
-        })
+        return packageNames
     }
 }

@@ -1,0 +1,17 @@
+{
+  "name": "test-plugin",
+  "version": "0.0.0",
+  "description": "This is a test plugin",
+  "main": "dist/index.js",
+  "typings": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3"
+  },
+  "dependencies": {
+    "guid-typescript": "^1.0.9",
+    "berry-plugin-manager": "file:../../"
+  }
+}
