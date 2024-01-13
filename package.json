@@ -7,9 +7,10 @@
   "scripts": {
     "build": "tsc -b",
     "prepack": "npmignore --auto",
+    "prepare": "npm run build",
     "pretest": "cd test/test-plugin && npm i && npm run build",
     "test": "jest",
-    "clean": "rm .npmignore && rm -rf `find . -name 'node_modules'` && rm -rf `find . -name 'dist'`"
+    "clean": "rm -f .npmignore && rm -rf `find . -name 'node_modules'` && rm -rf `find . -name 'dist'`"
   },
   "publishConfig": {
     "ignore": [
