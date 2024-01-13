@@ -1,0 +1,26 @@
+{
+  "name": "berry-plugin-manager",
+  "version": "0.1.0",
+  "description": "Load plugins at runtime to enable custom enhancements to your application.",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "npx tsc",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "plugin",
+    "plugin-manager",
+    "package",
+    "npm"
+  ],
+  "author": "Thomas Bonk",
+  "license": "Apache-2.0",
+  "devDependencies": {
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
+  },
+  "dependencies": {
+    "guid-typescript": "^1.0.9",
+    "live-plugin-manager": "^0.18.1"
+  }
+}
