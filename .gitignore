@@ -1,6 +1,5 @@
 ### Project-specific ###
 
-**/package-lock.json
 .npmignore
 **/*.js
 !jest.config.js
