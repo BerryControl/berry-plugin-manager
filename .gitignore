@@ -2,6 +2,7 @@
 
 .npmignore
 **/*.js
+!dist/*.js
 !jest.config.js
 
 # Created by https://www.toptal.com/developers/gitignore/api/macos,windows,linux,visualstudiocode,webstorm+all,node
@@ -147,7 +148,7 @@ out
 
 # Nuxt.js build / generate output
 .nuxt
-dist
+# dist
 
 # Gatsby files
 .cache/
