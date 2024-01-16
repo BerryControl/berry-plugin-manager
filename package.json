@@ -7,7 +7,7 @@
   "scripts": {
     "build": "tsc",
     "prepack": "npmignore --auto",
-    "prepare": "tsc",
+    "prepare": "npm run build",
     "pretest": "cd test/test-plugin && npm i && npm run build",
     "test": "jest",
     "clean": "rm -f .npmignore && rm -rf `find . -name 'node_modules'` && rm -rf `find . -name 'dist'`"
